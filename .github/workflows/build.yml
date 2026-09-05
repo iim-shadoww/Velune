@@ -35,17 +35,22 @@ jobs:
           zipStorePath=wrapper/dists
           EOF
 
-      - name: Create resources.properties for locale generation
+      - name: Create resources.properties in res directories
         run: |
+          mkdir -p app/src/main/res
+          mkdir -p app/src/main/resources
           mkdir -p app/src/main
+          echo "unqualifiedResLocale=en" > app/src/main/res/resources.properties
+          echo "unqualifiedResLocale=en" > app/src/main/resources/resources.properties
           echo "unqualifiedResLocale=en" > app/src/main/resources.properties
           echo "unqualifiedResLocale=en" > app/resources.properties
+          echo "unqualifiedResLocale=en" > resources.properties
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug -x :app:extractArm64DebugSupportedLocales -x :app:extractUniversalDebugSupportedLocales --stacktrace
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
