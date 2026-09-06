@@ -41,24 +41,40 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --stacktrace
 
-      - name: Upload Run Artifact
+      - name: Sign Universal Release APK
+        run: |
+          # 1. Generate release keystore
+          keytool -genkeypair -v -keystore release.jks -alias releaseKey -keyalg RSA -keysize 2048 -validity 10000 -storepass velunepass -keypass velunepass -dname "CN=Velune, OU=App, O=Velune, C=US"
+
+          # 2. Locate the generated universal release APK
+          APK_PATH=$(find app/build/outputs/apk -name "*universal*release*.apk" | head -n 1)
+          echo "Found universal APK at: $APK_PATH"
+
+          # 3. Locate apksigner and sign the universal APK
+          BUILD_TOOLS_VERSION=$(ls -1 "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)
+          APKSIGNER="$ANDROID_HOME/build-tools/$BUILD_TOOLS_VERSION/apksigner"
+
+          mkdir -p release-out
+          "$APKSIGNER" sign --ks release.jks --ks-pass pass:velunepass --key-pass pass:velunepass --out release-out/Velune-universal-release.apk "$APK_PATH"
+
+      - name: Upload Universal Run Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Velune-Debug-APK
-          path: app/build/outputs/apk/**/*.apk
+          name: Velune-Universal-Release-APK
+          path: release-out/Velune-universal-release.apk
           retention-days: 7
 
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: "Velune Build #${{ github.run_number }}"
-          body: "Automated build from commit ${{ github.sha }}"
+          name: "Velune v1.0.${{ github.run_number }}"
+          body: "Automated production universal release build from commit ${{ github.sha }}"
           draft: false
           prerelease: false
-          files: app/build/outputs/apk/**/*.apk
+          files: release-out/Velune-universal-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
